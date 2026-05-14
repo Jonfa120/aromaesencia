@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AromaEsencia - Sistema Integral</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --corp-burgundy: #600e2e; --corp-gold: #c99c3a; --bg: #fdfaf5; --white: #ffffff; }
+        body { font-family: 'Times New Roman', Times, serif; background: var(--bg); margin: 0; text-transform: uppercase; overflow-x: hidden; }
+        #login-page { position: fixed; inset: 0; background: radial-gradient(circle, #831540 0%, #3c091d 100%); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; }
+        .login-card { background: rgba(255,255,255,0.95); padding: 30px; border-radius: 15px; width: 320px; text-align: center; border: 2px solid var(--corp-gold); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #app-content { display: none; }
+        header { background: linear-gradient(180deg, #831540 0%, #600e2e 100%); padding: 15px; border-bottom: 4px solid var(--corp-gold); color: white; display: flex; justify-content: space-between; align-items: center; position: sticky; top:0; z-index:1001; }
+        header h1 span { color: var(--corp-gold); }
+        .container { padding: 15px; padding-bottom: 80px; }
+        .section { display: none; } .section.active { display: block; }
+        .selector-box { background: var(--corp-burgundy); color: var(--corp-gold); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--corp-gold); }
+        select, input { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--corp-gold); font-weight: bold; margin-bottom: 10px; }
+        .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: white; padding: 12px; border-radius: 10px; border-top: 4px solid var(--corp-gold); box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+        .stat-card p { font-size: 1.2rem; margin: 5px 0; font-weight: bold; color: var(--corp-burgundy); }
+        .chart-box { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); height: 250px; }
+        table { width: 100%; border-collapse: collapse; background: white; font-size: 0.65rem; }
+        th { background: var(--corp-burgundy); color: var(--corp-gold); padding: 8px; }
+        td { padding: 8px; border-bottom: 1px solid #eee; text-align: center; }
+        .btn { width: 100%; padding: 12px; border: none; font-weight: 900; cursor: pointer; text-transform: uppercase; border-radius: 5px; transition: 0.3s; }
+        .btn-main { background: linear-gradient(180deg, #e8c68a 0%, #c99c3a 100%); color: var(--corp-burgundy); }
+        .btn-edit { background: #eee; color: #333; padding: 4px; font-size: 0.6rem; border-radius: 3px; border: 1px solid #ccc; }
+        .btn-del { background: #ff4444; color: white; padding: 4px; font-size: 0.6rem; border-radius: 3px; border: none; }
+        .nav { position: fixed; bottom: 0; width: 100%; background: var(--corp-burgundy); display: flex; border-top: 3px solid var(--corp-gold); height: 60px; z-index: 1000; }
+        .nav-link { background: none; border: none; color: white; font-weight: bold; font-size: 0.6rem; flex: 1; opacity: 0.6; }
+        .nav-link.active { opacity: 1; color: var(--corp-gold); border-top: 4px solid var(--corp-gold); }
+    </style>
+</head>
+<body>
+
+<div id="login-page">
+    <div style="color: var(--corp-gold); font-size: 2rem; font-family: Georgia; margin-bottom: 20px; font-weight: bold;">AE</div>
+    <div class="login-card">
+        <h2 style="color: var(--corp-burgundy); margin-top: 0;">AROMAESENCIA</h2>
+        <input type="password" id="admin-pass" placeholder="CLAVE DE ACCESO">
+        <button class="btn btn-main" onclick="checkLogin()">INGRESAR</button>
+    </div>
+</div>
+
+<div id="app-content">
+    <header>
+        <h1>AROMA<span>ESENCIA BI</span></h1>
+        <div id="user-role-label" style="font-size: 9px; color: var(--corp-gold); border: 1px solid; padding: 2px 5px;">ROLE</div>
+    </header>
+
+    <div class="container">
+        <div id="sec-dash" class="section active">
+            <div class="selector-box">
+                <select id="sucursal-filter" onchange="updateDashboard()">
+                    <option value="TODAS">TODAS (VISTA GLOBAL)</option>
+                    <option value="Sucursal Central">Sucursal Central</option>
+                    <option value="Sucursal Norte">Sucursal Norte</option>
+                    <option value="Sucursal Sur">Sucursal Sur</option>
+                </select>
+            </div>
+            <div class="grid-stats">
+                <div class="stat-card"><h4>VENTAS</h4><p id="bi-ventas">$0.00</p></div>
+                <div class="stat-card"><h4>STOCK BAJO</h4><p id="bi-stock" style="color: red;">0</p></div>
+            </div>
+            <div class="chart-box"><canvas id="chartBI"></canvas></div>
+        </div>
+
+        <div id="sec-inv" class="section">
+            <div id="admin-crud-box" class="selector-box" style="background:white; color:black; display:none;">
+                <h3 style="font-size:0.7rem; color:var(--corp-burgundy); margin:0 0 10px 0;">GESTIÓN DE PRODUCTO (ADMIN)</h3>
+                <input type="hidden" id="edit-id">
+                <input type="text" id="inv-n" placeholder="NOMBRE DEL PRODUCTO">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <input type="number" id="inv-p" placeholder="PRECIO $">
+                    <input type="number" id="inv-s" placeholder="STOCK INICIAL">
+                </div>
+                <button class="btn btn-main" onclick="guardarProducto()">GUARDAR / ACTUALIZAR</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead><tr><th>PRODUCTO</th><th>STOCK</th><th>PRECIO</th><th class="admin-only-head">ACCIONES</th></tr></thead>
+                    <tbody id="lista-inv"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="sec-ventas" class="section">
+            <div class="selector-box" style="background: white; color: black;">
+                <label style="font-size: 0.6rem; color: var(--corp-burgundy);">PUNTO DE VENTA:</label>
+                <select id="sale-sucursal" disabled></select>
+                <select id="sale-prod"></select>
+                <input type="number" id="sale-qty" placeholder="CANTIDAD" value="1">
+                <button class="btn btn-main" onclick="registrarVenta()">PROCESAR VENTA</button>
+            </div>
+            
+            <h3 style="font-size: 0.75rem; border-left: 3px solid var(--corp-gold); padding-left: 5px; margin-top: 20px;">HISTORIAL DE CAJA</h3>
+            <div style="overflow-x: auto; margin-top: 10px;">
+                <table>
+                    <thead><tr><th>FECHA</th><th>SUCURSAL</th><th>PRODUCTO</th><th>CANT</th><th>TOTAL</th></tr></thead>
+                    <tbody id="lista-historial-ventas"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <nav class="nav">
+        <button id="nav-dash" class="nav-link active" onclick="showSec('sec-dash', this)">DASHBOARD</button>
+        <button class="nav-link" onclick="showSec('sec-inv', this)">INVENTARIO</button>
+        <button class="nav-link" onclick="showSec('sec-ventas', this)">VENTAS</button>
+        <button class="nav-link" onclick="location.reload()">SALIR</button>
+    </nav>
+</div>
+
+<script>
+    let currentUser = { role: '', sucursal: '' };
+    const USERS = {
+        "jonfa2026": { role: 'ADMIN', sucursal: 'TODAS' },
+        "central123": { role: 'USER', sucursal: 'Sucursal Central' },
+        "norte123": { role: 'USER', sucursal: 'Sucursal Norte' },
+        "sur123": { role: 'USER', sucursal: 'Sucursal Sur' }
+    };
+
+    let db = JSON.parse(localStorage.getItem('ae_db')) || {
+        productos: [
+            { id: 1, n: "PERFUME DAMAS 100ML", p: 45, s: {"Sucursal Central": 10, "Sucursal Norte": 2, "Sucursal Sur": 15} },
+            { id: 2, n: "ESENCIA QUIMICA 1L", p: 25, s: {"Sucursal Central": 20, "Sucursal Norte": 8, "Sucursal Sur": 4} }
+        ],
+        ventas: []
+    };
+
+    let biChart = null;
+
+    function checkLogin() {
+        const pass = document.getElementById('admin-pass').value;
+        if(USERS[pass]) {
+            currentUser = USERS[pass];
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+            setupPermissions();
+            updateDashboard();
+        } else { alert("CLAVE INCORRECTA"); }
+    }
+
+    function setupPermissions() {
+        document.getElementById('user-role-label').innerText = currentUser.role === 'ADMIN' ? 'ADMIN' : currentUser.sucursal;
+        if(currentUser.role === 'ADMIN') {
+            document.getElementById('admin-crud-box').style.display = 'block';
+            document.getElementById('nav-dash').style.display = 'block';
+            document.getElementById('sale-sucursal').disabled = false;
+        } else {
+            document.getElementById('admin-crud-box').style.display = 'none';
+            document.getElementById('nav-dash').style.display = 'none';
+            document.getElementById('sucursal-filter').value = currentUser.sucursal;
+            document.getElementById('sucursal-filter').disabled = true;
+            showSec('sec-inv', document.querySelectorAll('.nav-link')[1]);
+        }
+        let sOpts = currentUser.role === 'ADMIN' ? ['Sucursal Central', 'Sucursal Norte', 'Sucursal Sur'] : [currentUser.sucursal];
+        document.getElementById('sale-sucursal').innerHTML = sOpts.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+
+    function showSec(id, btn) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        btn.classList.add('active');
+        if(id === 'sec-inv') renderInv();
+        if(id === 'sec-ventas') renderHistorialVentas();
+    }
+
+    function renderInv() {
+        const filter = currentUser.role === 'ADMIN' ? document.getElementById('sucursal-filter').value : currentUser.sucursal;
+        let h = "";
+        db.productos.forEach(p => {
+            let stock = filter === "TODAS" ? Object.values(p.s).reduce((a,b)=>a+b,0) : p.s[filter];
+            h += `<tr><td>${p.n}</td><td style="color:${stock < 5 ? 'red':'black'}">${stock}</td><td>$${p.p}</td>
+                <td style="display:${currentUser.role === 'ADMIN' ? 'table-cell' : 'none'}">
+                    <button class="btn-edit" onclick="editarProd(${p.id})">EDIT</button>
+                    <button class="btn-del" onclick="eliminarProd(${p.id})">X</button>
+                </td></tr>`;
+        });
+        document.getElementById('lista-inv').innerHTML = h;
+        document.querySelector('.admin-only-head').style.display = currentUser.role === 'ADMIN' ? 'table-cell' : 'none';
+    }
+
+    function renderHistorialVentas() {
+        renderVentasSelect(); // Actualiza select de productos
+        let h = "";
+        const listaFiltrada = currentUser.role === 'ADMIN' ? db.ventas : db.ventas.filter(v => v.s === currentUser.sucursal);
+        
+        listaFiltrada.slice().reverse().forEach(v => {
+            h += `<tr>
+                <td>${v.f}</td>
+                <td>${v.s}</td>
+                <td>${v.pn}</td>
+                <td>${v.q}</td>
+                <td style="font-weight:bold;">$${v.t.toFixed(2)}</td>
+            </tr>`;
+        });
+        document.getElementById('lista-historial-ventas').innerHTML = h || "<tr><td colspan='5'>NO HAY VENTAS REGISTRADAS</td></tr>";
+    }
+
+    function renderVentasSelect() {
+        let h = "";
+        db.productos.forEach(p => h += `<option value="${p.id}">${p.n} ($${p.p})</option>`);
+        document.getElementById('sale-prod').innerHTML = h;
+    }
+
+    function registrarVenta() {
+        const sid = document.getElementById('sale-sucursal').value;
+        const pid = document.getElementById('sale-prod').value;
+        const qty = parseInt(document.getElementById('sale-qty').value);
+        const prod = db.productos.find(x => x.id == pid);
+        if(prod && prod.s[sid] >= qty) {
+            prod.s[sid] -= qty;
+            db.ventas.push({ s: sid, t: prod.p * qty, q: qty, pn: prod.n, f: new Date().toLocaleString() });
+            save(); alert("VENTA REGISTRADA"); renderHistorialVentas(); updateDashboard();
+        } else { alert("STOCK INSUFICIENTE"); }
+    }
+
+    function guardarProducto() {
+        const id = document.getElementById('edit-id').value;
+        const n = document.getElementById('inv-n').value.toUpperCase();
+        const p = parseFloat(document.getElementById('inv-p').value);
+        const s = parseInt(document.getElementById('inv-s').value);
+        if(!n || isNaN(p) || isNaN(s)) return alert("DATOS INCOMPLETOS");
+        if(id) {
+            let pr = db.productos.find(x => x.id == id);
+            pr.n = n; pr.p = p; pr.s["Sucursal Central"] = s;
+        } else {
+            db.productos.push({ id: Date.now(), n, p, s: {"Sucursal Central": s, "Sucursal Norte": 0, "Sucursal Sur": 0} });
+        }
+        save(); renderInv(); limpiarForm();
+    }
+
+    function editarProd(id) {
+        let p = db.productos.find(x => x.id == id);
+        document.getElementById('edit-id').value = p.id;
+        document.getElementById('inv-n').value = p.n;
+        document.getElementById('inv-p').value = p.p;
+        document.getElementById('inv-s').value = p.s["Sucursal Central"];
+    }
+
+    function eliminarProd(id) { if(confirm("ELIMINAR?")) { db.productos = db.productos.filter(x => x.id != id); save(); renderInv(); } }
+    
+    function updateDashboard() {
+        if(currentUser.role !== 'ADMIN' || !document.getElementById('chartBI')) return;
+        const filter = document.getElementById('sucursal-filter').value;
+        let totalV = 0, sBajo = 0;
+        let sData = { "Sucursal Central": 0, "Sucursal Norte": 0, "Sucursal Sur": 0 };
+        db.ventas.forEach(v => { if (filter === "TODAS" || v.s === filter) totalV += v.t; sData[v.s] += v.t; });
+        db.productos.forEach(p => {
+            if (filter === "TODAS") Object.values(p.s).forEach(q => { if(q < 5) sBajo++; });
+            else { if(p.s[filter] < 5) sBajo++; }
+        });
+        document.getElementById('bi-ventas').innerText = `$${totalV.toFixed(2)}`;
+        document.getElementById('bi-stock').innerText = sBajo;
+        renderChart(sData, filter);
+    }
+
+    function renderChart(data, filter) {
+        const ctx = document.getElementById('chartBI').getContext('2d');
+        if (biChart) biChart.destroy();
+        biChart = new Chart(ctx, {
+            type: filter === "TODAS" ? 'bar' : 'doughnut',
+            data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: ['#600e2e', '#c99c3a', '#831540'] }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: filter !== "TODAS" } } }
+        });
+    }
+
+    function limpiarForm() { document.getElementById('edit-id').value = ""; document.getElementById('inv-n').value = ""; document.getElementById('inv-p').value = ""; document.getElementById('inv-s').value = ""; }
+    function save() { localStorage.setItem('ae_db', JSON.stringify(db)); }
+</script>
+</body>
+</html>
