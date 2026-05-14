@@ -35,10 +35,7 @@
         .search-box { position: sticky; top: 70px; z-index: 999; background: var(--bg); padding: 10px 0; display: none; }
         .search-input { width: 100%; padding: 12px; border: 2px solid var(--corp-burgundy); border-radius: 25px; font-weight: bold; }
         .selector-box { background: var(--corp-burgundy); color: var(--corp-gold); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--corp-gold); }
-        .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .stat-card { background: white; padding: 12px; border-radius: 10px; border-top: 4px solid var(--corp-gold); text-align: center; }
-        .stat-card p { font-size: 1.2rem; margin: 5px 0; font-weight: bold; color: var(--corp-burgundy); }
-        table { width: 100%; border-collapse: collapse; background: white; font-size: 0.65rem; }
+        table { width: 100%; border-collapse: collapse; background: white; font-size: 0.6rem; }
         th { background: var(--corp-burgundy); color: var(--corp-gold); padding: 8px; }
         td { padding: 8px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold; }
         input, select { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--corp-gold); font-weight: bold; margin-bottom: 10px; box-sizing: border-box; }
@@ -73,23 +70,7 @@
             <input type="text" id="main-search" class="search-input" placeholder="🔍 BUSCAR PRODUCTO..." onkeyup="filtrarContenido()">
         </div>
 
-        <div id="sec-dash" class="section active">
-            <div class="selector-box">
-                <select id="sucursal-filter" onchange="updateDashboard()">
-                    <option value="TODAS">VISTA GLOBAL</option>
-                    <option value="Sucursal Central">Sucursal Central</option>
-                    <option value="Sucursal Norte">Sucursal Norte</option>
-                    <option value="Sucursal Sur">Sucursal Sur</option>
-                </select>
-            </div>
-            <div class="grid-stats">
-                <div class="stat-card"><h4>VENTAS</h4><p id="bi-ventas">$0.00</p></div>
-                <div class="stat-card"><h4>ST. BAJO</h4><p id="bi-stock" style="color: red;">0</p></div>
-            </div>
-            <div style="background: white; padding:15px; border-radius:10px; height:250px;"><canvas id="chartBI"></canvas></div>
-        </div>
-
-        <div id="sec-inv" class="section">
+        <div id="sec-inv" class="section active">
             <div id="admin-crud-box" class="selector-box" style="background:white; color:black; display:none;">
                 <input type="hidden" id="edit-id">
                 <input type="text" id="inv-n" placeholder="NOMBRE DEL PRODUCTO">
@@ -101,11 +82,19 @@
                         <option value="Sucursal Sur">SUC. SUR</option>
                     </select>
                 </div>
-                <input type="number" id="inv-s" placeholder="CANTIDAD EN SUCURSAL">
+                <input type="number" id="inv-s" placeholder="CANTIDAD">
                 <button class="btn btn-main" onclick="guardarProducto()">ACTUALIZAR NUBE</button>
             </div>
             <table>
-                <thead><tr><th>PRODUCTO</th><th>STOCK (C|N|S)</th><th>PRECIO</th><th id="th-acc">ACCIONES</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>PRODUCTO</th>
+                        <th>STOCK</th>
+                        <th>SUCURSAL</th>
+                        <th>PRECIO</th>
+                        <th id="th-acc">ACCIONES</th>
+                    </tr>
+                </thead>
                 <tbody id="lista-inv"></tbody>
             </table>
         </div>
@@ -117,14 +106,12 @@
                 <input type="number" id="sale-qty" value="1">
                 <button class="btn btn-main" onclick="registrarVenta()">FINALIZAR VENTA</button>
             </div>
-            <h4 style="font-size:0.7rem; margin:15px 0 5px 0;">HISTORIAL PRIVADO</h4>
             <div id="lista-historial-ventas"></div>
         </div>
     </div>
 
     <nav class="nav">
-        <button class="nav-link active" onclick="showSec('sec-dash', this)">DASHBOARD</button>
-        <button class="nav-link" onclick="showSec('sec-inv', this)">INVENTARIO</button>
+        <button class="nav-link active" onclick="showSec('sec-inv', this)">INVENTARIO</button>
         <button class="nav-link" onclick="showSec('sec-ventas', this)">VENTAS</button>
         <button class="nav-link" onclick="cerrarSesion()">SALIR</button>
     </nav>
@@ -136,7 +123,6 @@
     const USERS = { "jonfa2026": "ADMIN", "central123": "Sucursal Central", "norte123": "Sucursal Norte", "sur123": "Sucursal Sur" };
     let currentUser = { role: '', sucursal: '' };
     let dbCloud = { productos: [], ventas: [] };
-    let biChart = null;
 
     window.onload = () => {
         const saved = localStorage.getItem('aroma_key');
@@ -159,10 +145,6 @@
         
         if(currentUser.role === 'ADMIN') {
             document.getElementById('admin-crud-box').style.display = 'block';
-            document.getElementById('sucursal-filter').disabled = false;
-        } else {
-            document.getElementById('sucursal-filter').value = currentUser.sucursal;
-            document.getElementById('sucursal-filter').disabled = true;
         }
         conectarFirebase();
     }
@@ -172,166 +154,101 @@
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         btn.classList.add('active');
-        document.getElementById('main-search-container').style.display = (id === 'sec-dash') ? 'none' : 'block';
         filtrarContenido();
     };
 
     window.filtrarContenido = () => {
         const q = document.getElementById('main-search').value.toLowerCase();
-        const active = document.querySelector('.section.active').id;
-        if(active === 'sec-inv') renderInv(dbCloud.productos ? dbCloud.productos.filter(p => p.n.toLowerCase().includes(q)) : []);
-        if(active === 'sec-ventas') renderVentas();
+        if(document.getElementById('sec-inv').classList.contains('active')) {
+            renderInv(dbCloud.productos ? dbCloud.productos.filter(p => p.n.toLowerCase().includes(q)) : []);
+        }
     };
 
     function conectarFirebase() {
         onSnapshot(doc(window.cloudDB, "sistema", "aroma_data"), (snap) => {
             if(snap.exists()) {
                 dbCloud = snap.data();
-                updateDashboard();
                 filtrarContenido();
-            } else {
-                setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: [], ventas: [] });
             }
         });
     }
 
     window.guardarProducto = async () => {
-        try {
-            const n = document.getElementById('inv-n').value.trim().toUpperCase();
-            const p = parseFloat(document.getElementById('inv-p').value);
-            const s = parseInt(document.getElementById('inv-s').value);
-            const target = document.getElementById('inv-suc-target').value;
-            const editId = document.getElementById('edit-id').value;
+        const n = document.getElementById('inv-n').value.trim().toUpperCase();
+        const p = parseFloat(document.getElementById('inv-p').value);
+        const s = parseInt(document.getElementById('inv-s').value);
+        const target = document.getElementById('inv-suc-target').value;
+        const editId = document.getElementById('edit-id').value;
 
-            if(!n || isNaN(p) || isNaN(s)) return alert("POR FAVOR LLENA TODOS LOS CAMPOS");
+        if(!n || isNaN(p) || isNaN(s)) return alert("DATOS INCOMPLETOS");
 
-            let prods = Array.isArray(dbCloud.productos) ? JSON.parse(JSON.stringify(dbCloud.productos)) : [];
-            const id = editId || Date.now().toString();
-            const idx = prods.findIndex(x => x.id == id);
+        let prods = Array.isArray(dbCloud.productos) ? JSON.parse(JSON.stringify(dbCloud.productos)) : [];
+        const id = editId || Date.now().toString();
+        const idx = prods.findIndex(x => x.id == id);
 
-            if(idx > -1) {
-                if (typeof prods[idx].s !== 'object') prods[idx].s = {"Sucursal Central":0,"Sucursal Norte":0,"Sucursal Sur":0};
-                prods[idx].n = n;
-                prods[idx].p = p;
-                prods[idx].s[target] = s;
-            } else {
-                let sInit = {"Sucursal Central": 0, "Sucursal Norte": 0, "Sucursal Sur": 0};
-                sInit[target] = s;
-                prods.push({ id, n, p, s: sInit });
-            }
+        if(idx > -1) {
+            prods[idx].n = n; prods[idx].p = p; prods[idx].s[target] = s;
+        } else {
+            let sInit = {"Sucursal Central": 0, "Sucursal Norte": 0, "Sucursal Sur": 0};
+            sInit[target] = s;
+            prods.push({ id, n, p, s: sInit });
+        }
 
-            await setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: prods, ventas: dbCloud.ventas || [] }, { merge: true });
-            alert("BASE DE DATOS ACTUALIZADA");
-            limpiarForm();
-        } catch (err) { alert("ERROR AL GUARDAR"); }
+        await setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: prods, ventas: dbCloud.ventas || [] }, { merge: true });
+        limpiarForm();
     };
 
     window.eliminarProducto = async (id) => {
-        if(confirm("¿ELIMINAR ESTE PRODUCTO DE TODAS LAS SUCURSALES?")) {
+        if(confirm("¿ELIMINAR PRODUCTO?")) {
             const nuevos = dbCloud.productos.filter(p => p.id != id);
             await updateDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: nuevos });
-            alert("PRODUCTO ELIMINADO");
         }
     };
 
     function renderInv(lista) {
         let h = "";
         lista.forEach(p => {
-            const sC = p.s["Sucursal Central"] || 0;
-            const sN = p.s["Sucursal Norte"] || 0;
-            const sS = p.s["Sucursal Sur"] || 0;
-            
-            // Vista Admin muestra desglose, Vista User muestra su propia sucursal
-            const stockTxt = (currentUser.role === 'ADMIN') ? `${sC} | ${sN} | ${sS}` : (p.s[currentUser.sucursal] || 0);
-
-            h += `<tr>
-                <td>${p.n}</td>
-                <td style="color:${(sC+sN+sS)<5?'red':'black'}">${stockTxt}</td>
-                <td>$${p.p}</td>
-                <td>
-                    ${currentUser.role==='ADMIN' ? 
-                    `<button class="btn-edit" onclick="editar('${p.id}')">EDIT</button>
-                     <button class="btn-del" onclick="eliminarProducto('${p.id}')">BORRAR</button>` : '-'}
-                </td>
-            </tr>`;
+            if (currentUser.role === 'ADMIN') {
+                // Admin ve una fila por cada sucursal que tenga el producto
+                ["Sucursal Central", "Sucursal Norte", "Sucursal Sur"].forEach(suc => {
+                    const stock = p.s[suc] || 0;
+                    h += `<tr>
+                        <td>${p.n}</td>
+                        <td style="color:${stock < 5 ? 'red' : 'black'}">${stock}</td>
+                        <td>${suc.replace('Sucursal ', '')}</td>
+                        <td>$${p.p}</td>
+                        <td>
+                            <button class="btn-edit" onclick="cargarEdicion('${p.id}', '${suc}')">EDIT</button>
+                            <button class="btn-del" onclick="eliminarProducto('${p.id}')">BORRAR</button>
+                        </td>
+                    </tr>`;
+                });
+            } else {
+                // El vendedor solo ve su sucursal si hay stock
+                const stock = p.s[currentUser.sucursal] || 0;
+                if (stock > 0) {
+                    h += `<tr>
+                        <td>${p.n}</td>
+                        <td>${stock}</td>
+                        <td>${currentUser.sucursal.replace('Sucursal ', '')}</td>
+                        <td>$${p.p}</td>
+                        <td>-</td>
+                    </tr>`;
+                }
+            }
         });
         document.getElementById('lista-inv').innerHTML = h;
-        document.getElementById('th-acc').style.display = currentUser.role === 'ADMIN' ? 'table-cell' : 'none';
     }
 
-    window.editar = (id) => {
+    window.cargarEdicion = (id, suc) => {
         const p = dbCloud.productos.find(x => x.id == id);
-        const target = document.getElementById('inv-suc-target').value;
         document.getElementById('edit-id').value = p.id;
         document.getElementById('inv-n').value = p.n;
         document.getElementById('inv-p').value = p.p;
-        // Carga el stock dependiendo de la sucursal seleccionada en el combo de arriba
-        document.getElementById('inv-s').value = (typeof p.s === 'object') ? (p.s[target] || 0) : p.s;
+        document.getElementById('inv-suc-target').value = suc;
+        document.getElementById('inv-s').value = p.s[suc] || 0;
         window.scrollTo(0,0);
     };
-
-    window.registrarVenta = async () => {
-        const sid = document.getElementById('sale-sucursal').value;
-        const pid = document.getElementById('sale-prod').value;
-        const qty = parseInt(document.getElementById('sale-qty').value);
-        const prod = dbCloud.productos.find(x => x.id == pid);
-        if(prod && (prod.s[sid] || 0) >= qty) {
-            let newProds = dbCloud.productos.map(p => { 
-                if(p.id == pid) p.s[sid] -= qty;
-                return p; 
-            });
-            const v = { s: sid, pn: prod.n, t: prod.p * qty, q: qty, f: new Date().toLocaleString() };
-            await updateDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: newProds, ventas: arrayUnion(v) });
-            alert("VENTA REGISTRADA");
-        } else { alert("STOCK INSUFICIENTE"); }
-    };
-
-    function renderVentas() {
-        let pOpts = ""; if(dbCloud.productos) dbCloud.productos.forEach(p => pOpts += `<option value="${p.id}">${p.n} ($${p.p})</option>`);
-        document.getElementById('sale-prod').innerHTML = pOpts;
-        let sOpts = currentUser.role === 'ADMIN' ? ['Sucursal Central','Sucursal Norte','Sucursal Sur'] : [currentUser.sucursal];
-        document.getElementById('sale-sucursal').innerHTML = sOpts.map(s=>`<option value="${s}">${s}</option>`).join('');
-        
-        let h = "<table><thead><tr><th>FECHA</th><th>PROD</th><th>TOTAL</th></tr></thead><tbody>";
-        const filtradas = (currentUser.role === 'ADMIN') ? (dbCloud.ventas || []) : (dbCloud.ventas || []).filter(v=>v.s === currentUser.sucursal);
-        filtradas.slice(-15).reverse().forEach(v => {
-            h += `<tr><td>${v.f.split(',')[0]}</td><td>${v.pn}</td><td>$${v.t.toFixed(2)}</td></tr>`;
-        });
-        document.getElementById('lista-historial-ventas').innerHTML = h + "</tbody></table>";
-    }
-
-    function updateDashboard() {
-        const f = document.getElementById('sucursal-filter').value;
-        const sucursalActiva = (currentUser.role === 'ADMIN') ? f : currentUser.sucursal;
-        let total = 0, bajo = 0;
-        let chartData = {"Sucursal Central":0, "Sucursal Norte":0, "Sucursal Sur":0};
-        
-        if (dbCloud.ventas) {
-            dbCloud.ventas.forEach(v => { 
-                if(sucursalActiva === "TODAS" || v.s === sucursalActiva) total += v.t;
-                chartData[v.s] += v.t;
-            });
-        }
-        
-        if (dbCloud.productos) {
-            dbCloud.productos.forEach(p => {
-                const s = (sucursalActiva === "TODAS") ? Object.values(p.s).reduce((a,b)=>a+b,0) : (p.s[currentUser.sucursal] || 0);
-                if(s < 5) bajo++;
-            });
-        }
-        
-        document.getElementById('bi-ventas').innerText = `$${total.toFixed(2)}`;
-        document.getElementById('bi-stock').innerText = bajo;
-        
-        const etiquetas = (currentUser.role === 'ADMIN') ? Object.keys(chartData) : [currentUser.sucursal];
-        const valores = (currentUser.role === 'ADMIN') ? Object.values(chartData) : [chartData[currentUser.sucursal]];
-
-        if(biChart) biChart.destroy();
-        biChart = new Chart(document.getElementById('chartBI'), { 
-            type: 'bar', data: { labels: etiquetas, datasets: [{ label: 'Ventas ($)', data: valores, backgroundColor: ['#600e2e', '#c99c3a', '#831540'] }] },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-    }
 
     function limpiarForm() { 
         document.getElementById('edit-id').value = ""; 
