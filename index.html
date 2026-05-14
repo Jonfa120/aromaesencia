@@ -10,7 +10,6 @@
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
       import { getFirestore, doc, setDoc, onSnapshot, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-      // --- CONFIGURACIÓN DE FIREBASE ---
       const firebaseConfig = {
         apiKey: "TU_API_KEY",
         authDomain: "TU_PROYECTO.firebaseapp.com",
@@ -189,44 +188,54 @@
                 dbCloud = snap.data();
                 updateDashboard();
                 filtrarContenido();
+            } else {
+                setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: [], ventas: [] });
             }
         });
     }
 
-    // --- GUARDAR PRODUCTO CON REPARACIÓN DE FORMATO ---
+    // --- GUARDAR PRODUCTO: VERSIÓN ULTRA RESISTENTE ---
     window.guardarProducto = async () => {
         try {
-            const idDoc = document.getElementById('edit-id').value;
             const n = document.getElementById('inv-n').value.trim().toUpperCase();
             const p = parseFloat(document.getElementById('inv-p').value);
             const s = parseInt(document.getElementById('inv-s').value);
             const target = document.getElementById('inv-suc-target').value;
+            const editId = document.getElementById('edit-id').value;
 
-            if(!n || isNaN(p) || isNaN(s)) return alert("DATOS INCOMPLETOS");
+            if(!n || isNaN(p) || isNaN(s)) return alert("POR FAVOR LLENA TODOS LOS CAMPOS");
 
-            let prods = dbCloud.productos ? [...dbCloud.productos] : [];
-            const id = idDoc || Date.now().toString();
+            // Copiamos productos o iniciamos array vacío
+            let prods = Array.isArray(dbCloud.productos) ? JSON.parse(JSON.stringify(dbCloud.productos)) : [];
+            
+            const id = editId || Date.now().toString();
             const idx = prods.findIndex(x => x.id == id);
 
             if(idx > -1) {
-                // Reparación automática si el campo 's' no es un objeto (formato antiguo)
-                if (typeof prods[idx].s !== 'object') {
-                    prods[idx].s = {"Sucursal Central":0, "Sucursal Norte":0, "Sucursal Sur":0};
+                // Forzamos que 's' sea un objeto limpio si no lo es
+                if (typeof prods[idx].s !== 'object' || Array.isArray(prods[idx].s)) {
+                    prods[idx].s = {"Sucursal Central": 0, "Sucursal Norte": 0, "Sucursal Sur": 0};
                 }
                 prods[idx].n = n;
                 prods[idx].p = p;
-                prods[idx].s[target] = s; 
+                prods[idx].s[target] = s;
             } else {
-                let sInit = {"Sucursal Central":0, "Sucursal Norte":0, "Sucursal Sur":0};
+                let sInit = {"Sucursal Central": 0, "Sucursal Norte": 0, "Sucursal Sur": 0};
                 sInit[target] = s;
                 prods.push({ id, n, p, s: sInit });
             }
 
-            await updateDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: prods });
-            alert("BASE DE DATOS ACTUALIZADA");
+            // Usamos setDoc para sobreescribir y asegurar la estructura
+            await setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { 
+                productos: prods, 
+                ventas: dbCloud.ventas || [] 
+            }, { merge: true });
+
+            alert("GUARDADO CORRECTO EN AROMAESENCIA");
             limpiarForm();
         } catch (err) {
-            alert("FALLO EN LA NUBE: REVISAR CONEXIÓN");
+            console.error("Error crítico:", err);
+            alert("ERROR AL GUARDAR. REVISA LA CONEXIÓN.");
         }
     };
 
@@ -234,7 +243,7 @@
         let h = "";
         lista.forEach(p => {
             const stock = (currentUser.role === 'ADMIN') ? 
-                Object.values(p.s).reduce((a,b)=>a+b,0) : p.s[currentUser.sucursal];
+                Object.values(p.s).reduce((a,b)=>a+b,0) : (p.s[currentUser.sucursal] || 0);
             h += `<tr><td>${p.n}</td><td style="color:${stock<5?'red':'black'}">${stock}</td><td>$${p.p}</td>
                   <td>${currentUser.role==='ADMIN'?'<button class="btn-edit" onclick="editar(\''+p.id+'\')">EDIT</button>':'-'}</td></tr>`;
         });
@@ -247,8 +256,14 @@
         const pid = document.getElementById('sale-prod').value;
         const qty = parseInt(document.getElementById('sale-qty').value);
         const prod = dbCloud.productos.find(x => x.id == pid);
-        if(prod && prod.s[sid] >= qty) {
-            let newProds = dbCloud.productos.map(p => { if(p.id == pid) p.s[sid] -= qty; return p; });
+        if(prod && (prod.s[sid] || 0) >= qty) {
+            let newProds = dbCloud.productos.map(p => { 
+                if(p.id == pid) {
+                    if (typeof p.s !== 'object') p.s = {"Sucursal Central":0,"Sucursal Norte":0,"Sucursal Sur":0};
+                    p.s[sid] -= qty;
+                }
+                return p; 
+            });
             const v = { s: sid, pn: prod.n, t: prod.p * qty, q: qty, f: new Date().toLocaleString() };
             await updateDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: newProds, ventas: arrayUnion(v) });
             alert("VENTA REGISTRADA");
@@ -284,7 +299,7 @@
         
         if (dbCloud.productos) {
             dbCloud.productos.forEach(p => {
-                const s = (sucursalActiva === "TODAS") ? Object.values(p.s).reduce((a,b)=>a+b,0) : p.s[currentUser.sucursal];
+                const s = (sucursalActiva === "TODAS") ? Object.values(p.s).reduce((a,b)=>a+b,0) : (p.s[currentUser.sucursal] || 0);
                 if(s < 5) bajo++;
             });
         }
@@ -308,7 +323,7 @@
         document.getElementById('inv-n').value = p.n;
         document.getElementById('inv-p').value = p.p;
         const target = document.getElementById('inv-suc-target').value;
-        document.getElementById('inv-s').value = (typeof p.s === 'object') ? p.s[target] : p.s;
+        document.getElementById('inv-s').value = (typeof p.s === 'object') ? (p.s[target] || 0) : p.s;
     };
 
     function limpiarForm() { 
