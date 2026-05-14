@@ -10,6 +10,7 @@
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
       import { getFirestore, doc, setDoc, onSnapshot, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+      // --- CONFIGURACIÓN DE FIREBASE ---
       const firebaseConfig = {
         apiKey: "TU_API_KEY",
         authDomain: "TU_PROYECTO.firebaseapp.com",
@@ -178,7 +179,7 @@
     window.filtrarContenido = () => {
         const q = document.getElementById('main-search').value.toLowerCase();
         const active = document.querySelector('.section.active').id;
-        if(active === 'sec-inv') renderInv(dbCloud.productos.filter(p => p.n.toLowerCase().includes(q)));
+        if(active === 'sec-inv') renderInv(dbCloud.productos ? dbCloud.productos.filter(p => p.n.toLowerCase().includes(q)) : []);
         if(active === 'sec-ventas') renderVentas();
     };
 
@@ -188,43 +189,43 @@
                 dbCloud = snap.data();
                 updateDashboard();
                 filtrarContenido();
+            } else {
+                setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: [], ventas: [] });
             }
         });
     }
 
-    // SOLUCIÓN AL ERROR DE GUARDADO
+    // --- CORRECCIÓN DEFINITIVA DE GUARDADO ---
     window.guardarProducto = async () => {
-        const idField = document.getElementById('edit-id').value;
-        const n = document.getElementById('inv-n').value.toUpperCase();
-        const p = parseFloat(document.getElementById('inv-p').value);
-        const s = parseInt(document.getElementById('inv-s').value);
-        const target = document.getElementById('inv-suc-target').value;
-
-        if(!n || isNaN(p) || isNaN(s)) {
-            alert("LLENA TODOS LOS CAMPOS CORRECTAMENTE");
-            return;
-        }
-
-        let prods = dbCloud.productos ? [...dbCloud.productos] : [];
-        const id = idField || Date.now().toString();
-        const idx = prods.findIndex(x => x.id == id);
-
-        if(idx > -1) {
-            prods[idx].n = n; 
-            prods[idx].p = p; 
-            prods[idx].s[target] = s;
-        } else {
-            let stockInit = {"Sucursal Central":0, "Sucursal Norte":0, "Sucursal Sur":0};
-            stockInit[target] = s;
-            prods.push({ id, n, p, s: stockInit });
-        }
-
         try {
+            const idDoc = document.getElementById('edit-id').value;
+            const n = document.getElementById('inv-n').value.trim().toUpperCase();
+            const p = parseFloat(document.getElementById('inv-p').value);
+            const s = parseInt(document.getElementById('inv-s').value);
+            const target = document.getElementById('inv-suc-target').value;
+
+            if(!n || isNaN(p) || isNaN(s)) return alert("DATOS INCOMPLETOS");
+
+            let prods = dbCloud.productos ? [...dbCloud.productos] : [];
+            const id = idDoc || Date.now().toString();
+            const idx = prods.findIndex(x => x.id == id);
+
+            if(idx > -1) {
+                prods[idx].n = n;
+                prods[idx].p = p;
+                prods[idx].s[target] = s; 
+            } else {
+                let sInit = {"Sucursal Central":0, "Sucursal Norte":0, "Sucursal Sur":0};
+                sInit[target] = s;
+                prods.push({ id, n, p, s: sInit });
+            }
+
             await updateDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: prods });
-            alert("GUARDADO EXITOSO EN AROMAESENCIA");
+            alert("PRODUCTO ACTUALIZADO");
             limpiarForm();
-        } catch (e) {
-            alert("ERROR AL CONECTAR CON LA NUBE");
+        } catch (err) {
+            console.error(err);
+            alert("ERROR DE CONEXIÓN");
         }
     };
 
@@ -254,13 +255,13 @@
     };
 
     function renderVentas() {
-        let pOpts = ""; dbCloud.productos.forEach(p => pOpts += `<option value="${p.id}">${p.n} ($${p.p})</option>`);
+        let pOpts = ""; if(dbCloud.productos) dbCloud.productos.forEach(p => pOpts += `<option value="${p.id}">${p.n} ($${p.p})</option>`);
         document.getElementById('sale-prod').innerHTML = pOpts;
         let sOpts = currentUser.role === 'ADMIN' ? ['Sucursal Central','Sucursal Norte','Sucursal Sur'] : [currentUser.sucursal];
         document.getElementById('sale-sucursal').innerHTML = sOpts.map(s=>`<option value="${s}">${s}</option>`).join('');
         
         let h = "<table><thead><tr><th>FECHA</th><th>PROD</th><th>TOTAL</th></tr></thead><tbody>";
-        const filtradas = (currentUser.role === 'ADMIN') ? dbCloud.ventas : dbCloud.ventas.filter(v=>v.s === currentUser.sucursal);
+        const filtradas = (currentUser.role === 'ADMIN') ? (dbCloud.ventas || []) : (dbCloud.ventas || []).filter(v=>v.s === currentUser.sucursal);
         filtradas.slice(-15).reverse().forEach(v => {
             h += `<tr><td>${v.f.split(',')[0]}</td><td>${v.pn}</td><td>$${v.t.toFixed(2)}</td></tr>`;
         });
@@ -305,7 +306,6 @@
         document.getElementById('edit-id').value = p.id;
         document.getElementById('inv-n').value = p.n;
         document.getElementById('inv-p').value = p.p;
-        // Al editar, cargamos el stock de la sucursal seleccionada actualmente en el selector de carga
         const target = document.getElementById('inv-suc-target').value;
         document.getElementById('inv-s').value = p.s[target];
     };
