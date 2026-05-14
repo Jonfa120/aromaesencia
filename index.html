@@ -181,6 +181,9 @@
         if(document.getElementById('sec-inv').classList.contains('active')) {
             renderInv(dbCloud.productos ? dbCloud.productos.filter(p => p.n.toLowerCase().includes(q)) : []);
         }
+        if(document.getElementById('sec-ventas').classList.contains('active')) {
+            renderVentas();
+        }
     };
 
     function conectarFirebase() {
@@ -188,6 +191,7 @@
             if(snap.exists()) {
                 dbCloud = snap.data();
                 updateDashboard();
+                renderVentas();
                 filtrarContenido();
             }
         });
@@ -259,14 +263,26 @@
             const v = { s: sid, pn: prod.n, t: prod.p * qty, q: qty, f: new Date().toLocaleString() };
             await updateDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: newProds, ventas: arrayUnion(v) });
             alert("VENTA REGISTRADA");
-        } else alert("STOCK INSUFICIENTE");
+        } else alert("STOCK INSUFICIENTE EN ESTA SUCURSAL");
     };
 
     function renderVentas() {
-        let pOpts = ""; if(dbCloud.productos) dbCloud.productos.forEach(p => pOpts += `<option value="${p.id}">${p.n} ($${p.p})</option>`);
+        let pOpts = "<option value=''>SELECCIONAR PRODUCTO</option>";
+        const sucVenta = document.getElementById('sale-sucursal').value || currentUser.sucursal;
+        
+        if(dbCloud.productos) {
+            dbCloud.productos.forEach(p => {
+                const stockSuc = p.s[sucVenta] || 0;
+                if(stockSuc > 0) {
+                    pOpts += `<option value="${p.id}">${p.n} (STOCK: ${stockSuc}) - $${p.p}</option>`;
+                }
+            });
+        }
         document.getElementById('sale-prod').innerHTML = pOpts;
+
         let sOpts = currentUser.role === 'ADMIN' ? ['Sucursal Central','Sucursal Norte','Sucursal Sur'] : [currentUser.sucursal];
-        document.getElementById('sale-sucursal').innerHTML = sOpts.map(s=>`<option value="${s}">${s}</option>`).join('');
+        document.getElementById('sale-sucursal').innerHTML = sOpts.map(s=>`<option value="${s}" ${s===sucVenta?'selected':''}>${s.toUpperCase()}</option>`).join('');
+        
         let h = "<table><thead><tr><th>FECHA</th><th>PROD</th><th>TOTAL</th></tr></thead><tbody>";
         const filtradas = (currentUser.role === 'ADMIN') ? (dbCloud.ventas || []) : (dbCloud.ventas || []).filter(v=>v.s === currentUser.sucursal);
         filtradas.slice(-15).reverse().forEach(v => h += `<tr><td>${v.f.split(',')[0]}</td><td>${v.pn}</td><td>$${v.t.toFixed(2)}</td></tr>`);
@@ -277,7 +293,10 @@
         const sucursalActiva = (currentUser.role === 'ADMIN') ? document.getElementById('sucursal-filter').value : currentUser.sucursal;
         let total = 0, bajo = 0; let chartData = {"Sucursal Central":0,"Sucursal Norte":0,"Sucursal Sur":0};
         if (dbCloud.ventas) dbCloud.ventas.forEach(v => { if(sucursalActiva === "TODAS" || v.s === sucursalActiva) total += v.t; chartData[v.s] += v.t; });
-        if (dbCloud.productos) dbCloud.productos.forEach(p => { const s = (sucursalActiva === "TODAS") ? Object.values(p.s).reduce((a,b)=>a+b,0) : (p.s[currentUser.sucursal] || 0); if(s < 5) bajo++; });
+        if (dbCloud.productos) dbCloud.productos.forEach(p => { 
+            const s = (sucursalActiva === "TODAS") ? Object.values(p.s).reduce((a,b)=>a+b,0) : (p.s[sucursalActiva] || 0); 
+            if(s < 5) bajo++; 
+        });
         document.getElementById('bi-ventas').innerText = `$${total.toFixed(2)}`;
         document.getElementById('bi-stock').innerText = bajo;
         const etiquetas = (currentUser.role === 'ADMIN') ? Object.keys(chartData) : [currentUser.sucursal];
