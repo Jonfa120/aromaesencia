@@ -189,13 +189,11 @@
                 dbCloud = snap.data();
                 updateDashboard();
                 filtrarContenido();
-            } else {
-                setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: [], ventas: [] });
             }
         });
     }
 
-    // --- CORRECCIÓN DEFINITIVA DE GUARDADO ---
+    // --- GUARDAR PRODUCTO CON REPARACIÓN DE FORMATO ---
     window.guardarProducto = async () => {
         try {
             const idDoc = document.getElementById('edit-id').value;
@@ -211,6 +209,10 @@
             const idx = prods.findIndex(x => x.id == id);
 
             if(idx > -1) {
+                // Reparación automática si el campo 's' no es un objeto (formato antiguo)
+                if (typeof prods[idx].s !== 'object') {
+                    prods[idx].s = {"Sucursal Central":0, "Sucursal Norte":0, "Sucursal Sur":0};
+                }
                 prods[idx].n = n;
                 prods[idx].p = p;
                 prods[idx].s[target] = s; 
@@ -221,11 +223,10 @@
             }
 
             await updateDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: prods });
-            alert("PRODUCTO ACTUALIZADO");
+            alert("BASE DE DATOS ACTUALIZADA");
             limpiarForm();
         } catch (err) {
-            console.error(err);
-            alert("ERROR DE CONEXIÓN");
+            alert("FALLO EN LA NUBE: REVISAR CONEXIÓN");
         }
     };
 
@@ -283,7 +284,7 @@
         
         if (dbCloud.productos) {
             dbCloud.productos.forEach(p => {
-                const s = (sucursalActiva === "TODAS") ? Object.values(p.s).reduce((a,b)=>a+b,0) : p.s[sucursalActiva];
+                const s = (sucursalActiva === "TODAS") ? Object.values(p.s).reduce((a,b)=>a+b,0) : p.s[currentUser.sucursal];
                 if(s < 5) bajo++;
             });
         }
@@ -307,7 +308,7 @@
         document.getElementById('inv-n').value = p.n;
         document.getElementById('inv-p').value = p.p;
         const target = document.getElementById('inv-suc-target').value;
-        document.getElementById('inv-s').value = p.s[target];
+        document.getElementById('inv-s').value = (typeof p.s === 'object') ? p.s[target] : p.s;
     };
 
     function limpiarForm() { 
