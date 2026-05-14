@@ -183,17 +183,20 @@
     };
 
     function conectarFirebase() {
-        onSnapshot(doc(window.cloudDB, "sistema", "aroma_data"), (snap) => {
+        // Referencia exacta: colección "sistema", documento "aroma_data"
+        const docRef = doc(window.cloudDB, "sistema", "aroma_data");
+        
+        onSnapshot(docRef, (snap) => {
             if(snap.exists()) {
                 dbCloud = snap.data();
                 updateDashboard();
                 filtrarContenido();
             } else {
-                setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: [], ventas: [] });
+                // Si el documento no existe en la consola, lo creamos ahora mismo
+                setDoc(docRef, { productos: [], ventas: [] });
             }
         });
     }
-
     // --- GUARDAR PRODUCTO: VERSIÓN ULTRA RESISTENTE ---
     window.guardarProducto = async () => {
         try {
