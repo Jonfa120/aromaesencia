@@ -11,12 +11,12 @@
       import { getFirestore, doc, setDoc, onSnapshot, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
       const firebaseConfig = {
-        apiKey: "360426993485", // Búscala en Configuración del Proyecto
+        apiKey: "TU_API_KEY",
         authDomain: "aromaesencia-9abf1.firebaseapp.com",
         projectId: "aromaesencia-9abf1",
         storageBucket: "aromaesencia-9abf1.appspot.com",
         messagingSenderId: "360426993485",
-        appId: "1:360426993485:web:d1c5ee6ec9929c10742904" // Búscala en Configuración del Proyecto (Empieza con 1:360...)
+        appId: "TU_APP_ID"
       };
 
       const app = initializeApp(firebaseConfig);
@@ -38,13 +38,14 @@
         .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .stat-card { background: white; padding: 12px; border-radius: 10px; border-top: 4px solid var(--corp-gold); text-align: center; }
         .stat-card p { font-size: 1.2rem; margin: 5px 0; font-weight: bold; color: var(--corp-burgundy); }
-        table { width: 100%; border-collapse: collapse; background: white; font-size: 0.7rem; }
-        th { background: var(--corp-burgundy); color: var(--corp-gold); padding: 12px; }
-        td { padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; background: white; font-size: 0.65rem; }
+        th { background: var(--corp-burgundy); color: var(--corp-gold); padding: 8px; }
+        td { padding: 8px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold; }
         input, select { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--corp-gold); font-weight: bold; margin-bottom: 10px; box-sizing: border-box; }
         .btn { width: 100%; padding: 12px; border: none; font-weight: 900; cursor: pointer; text-transform: uppercase; border-radius: 5px; }
         .btn-main { background: linear-gradient(180deg, #e8c68a 0%, #c99c3a 100%); color: var(--corp-burgundy); }
-        .btn-edit { background: var(--corp-gold); color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.6rem; }
+        .btn-edit { background: var(--corp-gold); color: white; padding: 5px; border-radius: 4px; font-size: 0.55rem; margin-bottom: 2px; display: block; width: 100%; }
+        .btn-del { background: #831540; color: white; padding: 5px; border-radius: 4px; font-size: 0.55rem; display: block; width: 100%; }
         .nav { position: fixed; bottom: 0; width: 100%; background: var(--corp-burgundy); display: flex; border-top: 3px solid var(--corp-gold); height: 60px; z-index: 1000; }
         .nav-link { background: none; border: none; color: white; font-weight: bold; font-size: 0.65rem; flex: 1; opacity: 0.6; }
         .nav-link.active { opacity: 1; color: var(--corp-gold); border-top: 4px solid var(--corp-gold); }
@@ -95,16 +96,16 @@
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                     <input type="number" id="inv-p" placeholder="PRECIO $">
                     <select id="inv-suc-target">
-                        <option value="Sucursal Central">ENVIAR A CENTRAL</option>
-                        <option value="Sucursal Norte">ENVIAR A NORTE</option>
-                        <option value="Sucursal Sur">ENVIAR A SUR</option>
+                        <option value="Sucursal Central">SUC. CENTRAL</option>
+                        <option value="Sucursal Norte">SUC. NORTE</option>
+                        <option value="Sucursal Sur">SUC. SUR</option>
                     </select>
                 </div>
-                <input type="number" id="inv-s" placeholder="CANTIDAD">
+                <input type="number" id="inv-s" placeholder="CANTIDAD EN SUCURSAL">
                 <button class="btn btn-main" onclick="guardarProducto()">ACTUALIZAR NUBE</button>
             </div>
             <table>
-                <thead><tr><th>PRODUCTO</th><th>STOCK</th><th>PRECIO</th><th id="th-acc">ACCIÓN</th></tr></thead>
+                <thead><tr><th>PRODUCTO</th><th>STOCK (C|N|S)</th><th>PRECIO</th><th id="th-acc">ACCIONES</th></tr></thead>
                 <tbody id="lista-inv"></tbody>
             </table>
         </div>
@@ -183,21 +184,17 @@
     };
 
     function conectarFirebase() {
-        // Referencia exacta: colección "sistema", documento "aroma_data"
-        const docRef = doc(window.cloudDB, "sistema", "aroma_data");
-        
-        onSnapshot(docRef, (snap) => {
+        onSnapshot(doc(window.cloudDB, "sistema", "aroma_data"), (snap) => {
             if(snap.exists()) {
                 dbCloud = snap.data();
                 updateDashboard();
                 filtrarContenido();
             } else {
-                // Si el documento no existe en la consola, lo creamos ahora mismo
-                setDoc(docRef, { productos: [], ventas: [] });
+                setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: [], ventas: [] });
             }
         });
     }
-    // --- GUARDAR PRODUCTO: VERSIÓN ULTRA RESISTENTE ---
+
     window.guardarProducto = async () => {
         try {
             const n = document.getElementById('inv-n').value.trim().toUpperCase();
@@ -208,17 +205,12 @@
 
             if(!n || isNaN(p) || isNaN(s)) return alert("POR FAVOR LLENA TODOS LOS CAMPOS");
 
-            // Copiamos productos o iniciamos array vacío
             let prods = Array.isArray(dbCloud.productos) ? JSON.parse(JSON.stringify(dbCloud.productos)) : [];
-            
             const id = editId || Date.now().toString();
             const idx = prods.findIndex(x => x.id == id);
 
             if(idx > -1) {
-                // Forzamos que 's' sea un objeto limpio si no lo es
-                if (typeof prods[idx].s !== 'object' || Array.isArray(prods[idx].s)) {
-                    prods[idx].s = {"Sucursal Central": 0, "Sucursal Norte": 0, "Sucursal Sur": 0};
-                }
+                if (typeof prods[idx].s !== 'object') prods[idx].s = {"Sucursal Central":0,"Sucursal Norte":0,"Sucursal Sur":0};
                 prods[idx].n = n;
                 prods[idx].p = p;
                 prods[idx].s[target] = s;
@@ -228,31 +220,55 @@
                 prods.push({ id, n, p, s: sInit });
             }
 
-            // Usamos setDoc para sobreescribir y asegurar la estructura
-            await setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { 
-                productos: prods, 
-                ventas: dbCloud.ventas || [] 
-            }, { merge: true });
-
-            alert("GUARDADO CORRECTO EN AROMAESENCIA");
+            await setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: prods, ventas: dbCloud.ventas || [] }, { merge: true });
+            alert("BASE DE DATOS ACTUALIZADA");
             limpiarForm();
-        } catch (err) {
-            console.error("Error crítico:", err);
-            alert("ERROR AL GUARDAR. REVISA LA CONEXIÓN.");
+        } catch (err) { alert("ERROR AL GUARDAR"); }
+    };
+
+    window.eliminarProducto = async (id) => {
+        if(confirm("¿ELIMINAR ESTE PRODUCTO DE TODAS LAS SUCURSALES?")) {
+            const nuevos = dbCloud.productos.filter(p => p.id != id);
+            await updateDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: nuevos });
+            alert("PRODUCTO ELIMINADO");
         }
     };
 
     function renderInv(lista) {
         let h = "";
         lista.forEach(p => {
-            const stock = (currentUser.role === 'ADMIN') ? 
-                Object.values(p.s).reduce((a,b)=>a+b,0) : (p.s[currentUser.sucursal] || 0);
-            h += `<tr><td>${p.n}</td><td style="color:${stock<5?'red':'black'}">${stock}</td><td>$${p.p}</td>
-                  <td>${currentUser.role==='ADMIN'?'<button class="btn-edit" onclick="editar(\''+p.id+'\')">EDIT</button>':'-'}</td></tr>`;
+            const sC = p.s["Sucursal Central"] || 0;
+            const sN = p.s["Sucursal Norte"] || 0;
+            const sS = p.s["Sucursal Sur"] || 0;
+            
+            // Vista Admin muestra desglose, Vista User muestra su propia sucursal
+            const stockTxt = (currentUser.role === 'ADMIN') ? `${sC} | ${sN} | ${sS}` : (p.s[currentUser.sucursal] || 0);
+
+            h += `<tr>
+                <td>${p.n}</td>
+                <td style="color:${(sC+sN+sS)<5?'red':'black'}">${stockTxt}</td>
+                <td>$${p.p}</td>
+                <td>
+                    ${currentUser.role==='ADMIN' ? 
+                    `<button class="btn-edit" onclick="editar('${p.id}')">EDIT</button>
+                     <button class="btn-del" onclick="eliminarProducto('${p.id}')">BORRAR</button>` : '-'}
+                </td>
+            </tr>`;
         });
         document.getElementById('lista-inv').innerHTML = h;
         document.getElementById('th-acc').style.display = currentUser.role === 'ADMIN' ? 'table-cell' : 'none';
     }
+
+    window.editar = (id) => {
+        const p = dbCloud.productos.find(x => x.id == id);
+        const target = document.getElementById('inv-suc-target').value;
+        document.getElementById('edit-id').value = p.id;
+        document.getElementById('inv-n').value = p.n;
+        document.getElementById('inv-p').value = p.p;
+        // Carga el stock dependiendo de la sucursal seleccionada en el combo de arriba
+        document.getElementById('inv-s').value = (typeof p.s === 'object') ? (p.s[target] || 0) : p.s;
+        window.scrollTo(0,0);
+    };
 
     window.registrarVenta = async () => {
         const sid = document.getElementById('sale-sucursal').value;
@@ -261,10 +277,7 @@
         const prod = dbCloud.productos.find(x => x.id == pid);
         if(prod && (prod.s[sid] || 0) >= qty) {
             let newProds = dbCloud.productos.map(p => { 
-                if(p.id == pid) {
-                    if (typeof p.s !== 'object') p.s = {"Sucursal Central":0,"Sucursal Norte":0,"Sucursal Sur":0};
-                    p.s[sid] -= qty;
-                }
+                if(p.id == pid) p.s[sid] -= qty;
                 return p; 
             });
             const v = { s: sid, pn: prod.n, t: prod.p * qty, q: qty, f: new Date().toLocaleString() };
@@ -319,15 +332,6 @@
             options: { responsive: true, maintainAspectRatio: false }
         });
     }
-
-    window.editar = (id) => {
-        const p = dbCloud.productos.find(x => x.id == id);
-        document.getElementById('edit-id').value = p.id;
-        document.getElementById('inv-n').value = p.n;
-        document.getElementById('inv-p').value = p.p;
-        const target = document.getElementById('inv-suc-target').value;
-        document.getElementById('inv-s').value = (typeof p.s === 'object') ? (p.s[target] || 0) : p.s;
-    };
 
     function limpiarForm() { 
         document.getElementById('edit-id').value = ""; 
