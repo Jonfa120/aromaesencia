@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AromaEsencia - Cloud System</title>
+    <title>AromaEsencia - Business Intelligence</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
       import { getFirestore, doc, setDoc, onSnapshot, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-      // --- CONFIGURACIÓN FIREBASE (REEMPLAZA CON TUS DATOS) ---
+      // --- CONFIGURACIÓN DE FIREBASE ---
       const firebaseConfig = {
         apiKey: "TU_API_KEY",
         authDomain: "TU_PROYECTO.firebaseapp.com",
@@ -25,111 +25,106 @@
     </script>
 
     <style>
-        :root { --corp-burgundy: #600e2e; --corp-gold: #c99c3a; --bg: #fdfaf5; }
-        html, body { overscroll-behavior-y: contain; font-family: 'Times New Roman', serif; background: var(--bg); margin: 0; text-transform: uppercase; }
-        
-        #login-page { position: fixed; inset: 0; background: radial-gradient(circle, #831540 0%, #3c091d 100%); display: flex; justify-content: center; align-items: center; z-index: 3000; }
-        .login-card { background: white; padding: 30px; border-radius: 15px; width: 300px; text-align: center; border: 2px solid var(--corp-gold); }
-        
+        :root { --corp-burgundy: #600e2e; --corp-gold: #c99c3a; --bg: #fdfaf5; --white: #ffffff; }
+        html, body { overscroll-behavior-y: contain; font-family: 'Times New Roman', Times, serif; background: var(--bg); margin: 0; text-transform: uppercase; }
+        #login-page { position: fixed; inset: 0; background: radial-gradient(circle, #831540 0%, #3c091d 100%); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; }
+        .login-card { background: rgba(255,255,255,0.95); padding: 30px; border-radius: 15px; width: 320px; text-align: center; border: 2px solid var(--corp-gold); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         header { background: linear-gradient(180deg, #831540 0%, #600e2e 100%); padding: 15px; border-bottom: 4px solid var(--corp-gold); color: white; display: flex; justify-content: space-between; align-items: center; position: sticky; top:0; z-index:1001; }
-        
+        header h1 span { color: var(--corp-gold); }
         .container { padding: 15px; padding-bottom: 80px; }
         .section { display: none; } .section.active { display: block; }
-
         .search-box { position: sticky; top: 70px; z-index: 999; background: var(--bg); padding: 10px 0; display: none; }
-        .search-input { width: 100%; padding: 12px; border: 2px solid var(--corp-burgundy); border-radius: 25px; box-sizing: border-box; }
-
-        .selector-box { background: var(--corp-burgundy); color: var(--corp-gold); padding: 12px; border-radius: 8px; margin-bottom: 15px; }
+        .search-input { width: 100%; padding: 12px; border: 2px solid var(--corp-burgundy); border-radius: 25px; font-weight: bold; }
+        .selector-box { background: var(--corp-burgundy); color: var(--corp-gold); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--corp-gold); }
+        .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: white; padding: 12px; border-radius: 10px; border-top: 4px solid var(--corp-gold); text-align: center; }
+        .stat-card p { font-size: 1.2rem; margin: 5px 0; font-weight: bold; color: var(--corp-burgundy); }
         table { width: 100%; border-collapse: collapse; background: white; font-size: 0.7rem; }
-        th { background: var(--corp-burgundy); color: var(--corp-gold); padding: 10px; }
-        td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
-        
-        .btn { width: 100%; padding: 12px; border: none; font-weight: bold; border-radius: 5px; cursor: pointer; }
+        th { background: var(--corp-burgundy); color: var(--corp-gold); padding: 12px; }
+        td { padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--corp-gold); font-weight: bold; margin-bottom: 10px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 12px; border: none; font-weight: 900; cursor: pointer; text-transform: uppercase; border-radius: 5px; }
         .btn-main { background: linear-gradient(180deg, #e8c68a 0%, #c99c3a 100%); color: var(--corp-burgundy); }
-        
+        .btn-edit { background: var(--corp-gold); color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.6rem; }
         .nav { position: fixed; bottom: 0; width: 100%; background: var(--corp-burgundy); display: flex; border-top: 3px solid var(--corp-gold); height: 60px; z-index: 1000; }
-        .nav-link { background: none; border: none; color: white; flex: 1; font-weight: bold; font-size: 0.65rem; opacity: 0.6; }
+        .nav-link { background: none; border: none; color: white; font-weight: bold; font-size: 0.65rem; flex: 1; opacity: 0.6; }
         .nav-link.active { opacity: 1; color: var(--corp-gold); border-top: 4px solid var(--corp-gold); }
     </style>
 </head>
 <body>
 
 <div id="login-page">
+    <div style="color: var(--corp-gold); font-size: 2.5rem; font-family: Georgia; margin-bottom: 20px; font-weight: bold;">AE</div>
     <div class="login-card">
         <h2 style="color: var(--corp-burgundy);">AROMAESENCIA</h2>
-        <input type="password" id="admin-pass" placeholder="CLAVE">
+        <input type="password" id="admin-pass" placeholder="CLAVE DE ACCESO">
         <button class="btn btn-main" onclick="checkLogin()">INGRESAR</button>
     </div>
 </div>
 
 <div id="app-content" style="display:none;">
     <header>
-        <h1 style="margin:0; font-size: 1.2rem;">AROMA<span style="color:var(--corp-gold)">ESENCIA</span></h1>
-        <div id="user-role-label" style="font-size: 10px; border: 1px solid var(--corp-gold); padding: 2px 5px;"></div>
+        <h1>AROMA<span>ESENCIA</span></h1>
+        <div id="user-role-label" style="font-size: 10px; color: var(--corp-gold); border: 1px solid; padding: 2px 5px;"></div>
     </header>
 
     <div class="container">
-        <div class="search-box" id="search-container">
+        <div class="search-box" id="main-search-container">
             <input type="text" id="main-search" class="search-input" placeholder="🔍 BUSCAR PRODUCTO..." onkeyup="filtrarContenido()">
         </div>
 
-        <!-- DASHBOARD -->
         <div id="sec-dash" class="section active">
             <div class="selector-box">
-                <select id="sucursal-filter" onchange="updateDashboard()" style="width:100%; padding:8px;">
+                <select id="sucursal-filter" onchange="updateDashboard()">
                     <option value="TODAS">VISTA GLOBAL</option>
                     <option value="Sucursal Central">Sucursal Central</option>
                     <option value="Sucursal Norte">Sucursal Norte</option>
                     <option value="Sucursal Sur">Sucursal Sur</option>
                 </select>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
-                <div style="background:white; padding:15px; border-radius:10px; text-align:center;">
-                    <small>VENTAS</small><div id="bi-ventas" style="font-size:1.2rem; font-weight:bold; color:var(--corp-burgundy);">$0.00</div>
-                </div>
-                <div style="background:white; padding:15px; border-radius:10px; text-align:center;">
-                    <small>S. BAJO</small><div id="bi-stock" style="font-size:1.2rem; font-weight:bold; color:red;">0</div>
-                </div>
+            <div class="grid-stats">
+                <div class="stat-card"><h4>VENTAS</h4><p id="bi-ventas">$0.00</p></div>
+                <div class="stat-card"><h4>ST. BAJO</h4><p id="bi-stock" style="color: red;">0</p></div>
             </div>
-            <div style="height: 200px;"><canvas id="chartBI"></canvas></div>
+            <div style="background: white; padding:15px; border-radius:10px; height:250px;"><canvas id="chartBI"></canvas></div>
         </div>
 
-        <!-- INVENTARIO -->
         <div id="sec-inv" class="section">
-            <div id="admin-crud-box" style="display:none; background:white; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid var(--corp-gold);">
+            <div id="admin-crud-box" class="selector-box" style="background:white; color:black; display:none;">
                 <input type="hidden" id="edit-id">
-                <input type="text" id="inv-n" placeholder="NOMBRE PERFUME" style="width:100%; margin-bottom:5px;">
-                <div style="display:flex; gap:5px;">
-                    <input type="number" id="inv-p" placeholder="PRECIO" style="flex:1;">
-                    <input type="number" id="inv-s" placeholder="STOCK" style="flex:1;">
+                <input type="text" id="inv-n" placeholder="NOMBRE DEL PRODUCTO">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <input type="number" id="inv-p" placeholder="PRECIO $">
+                    <select id="inv-suc-target">
+                        <option value="Sucursal Central">ENVIAR A CENTRAL</option>
+                        <option value="Sucursal Norte">ENVIAR A NORTE</option>
+                        <option value="Sucursal Sur">ENVIAR A SUR</option>
+                    </select>
                 </div>
-                <button class="btn btn-main" onclick="guardarProducto()" style="margin-top:5px;">GUARDAR PRODUCTO</button>
+                <input type="number" id="inv-s" placeholder="CANTIDAD">
+                <button class="btn btn-main" onclick="guardarProducto()">ACTUALIZAR NUBE</button>
             </div>
             <table>
-                <thead><tr><th>PRODUCTO</th><th>STOCK</th><th>PRECIO</th><th>ACCIÓN</th></tr></thead>
+                <thead><tr><th>PRODUCTO</th><th>STOCK</th><th>PRECIO</th><th id="th-acc">ACCIÓN</th></tr></thead>
                 <tbody id="lista-inv"></tbody>
             </table>
         </div>
 
-        <!-- VENTAS -->
         <div id="sec-ventas" class="section">
-            <div class="selector-box" style="background:white; border:1px solid var(--corp-burgundy);">
-                <select id="sale-sucursal" style="width:100%; margin-bottom:5px;"></select>
-                <select id="sale-prod" style="width:100%; margin-bottom:5px;"></select>
-                <input type="number" id="sale-qty" value="1" style="width:100%; margin-bottom:5px;">
-                <button class="btn btn-main" onclick="registrarVenta()">REGISTRAR VENTA</button>
+            <div class="selector-box" style="background: white; border: 1px solid var(--corp-burgundy);">
+                <select id="sale-sucursal"></select>
+                <select id="sale-prod"></select>
+                <input type="number" id="sale-qty" value="1">
+                <button class="btn btn-main" onclick="registrarVenta()">FINALIZAR VENTA</button>
             </div>
-            <h4 style="margin:10px 0;">ÚLTIMOS MOVIMIENTOS</h4>
-            <table>
-                <thead><tr><th>FECHA</th><th>PRODUCTO</th><th>TOTAL</th></tr></thead>
-                <tbody id="lista-historial-ventas"></tbody>
-            </table>
+            <h4 style="font-size:0.7rem; margin:15px 0 5px 0;">HISTORIAL PRIVADO</h4>
+            <div id="lista-historial-ventas"></div>
         </div>
     </div>
 
     <nav class="nav">
-        <button class="nav-link active" onclick="showSec('sec-dash', this)">DASH</button>
-        <button class="nav-link" onclick="showSec('sec-inv', this)">STOCK</button>
+        <button class="nav-link active" onclick="showSec('sec-dash', this)">DASHBOARD</button>
+        <button class="nav-link" onclick="showSec('sec-inv', this)">INVENTARIO</button>
         <button class="nav-link" onclick="showSec('sec-ventas', this)">VENTAS</button>
         <button class="nav-link" onclick="cerrarSesion()">SALIR</button>
     </nav>
@@ -143,7 +138,6 @@
     let dbCloud = { productos: [], ventas: [] };
     let biChart = null;
 
-    // --- CARGA INICIAL Y PERSISTENCIA ---
     window.onload = () => {
         const saved = localStorage.getItem('aroma_key');
         if(saved && USERS[saved]) iniciarSesion(saved);
@@ -151,135 +145,140 @@
 
     window.checkLogin = () => {
         const p = document.getElementById('admin-pass').value;
-        if(USERS[p]) {
-            localStorage.setItem('aroma_key', p);
-            iniciarSesion(p);
-        } else { alert("CLAVE INCORRECTA"); }
+        if(USERS[p]) { localStorage.setItem('aroma_key', p); iniciarSesion(p); }
+        else alert("CLAVE INCORRECTA");
     };
 
-    window.cerrarSesion = () => {
-        if(confirm("¿CERRAR SESIÓN?")) {
-            localStorage.removeItem('aroma_key');
-            location.reload();
-        }
-    };
+    window.cerrarSesion = () => { if(confirm("¿CERRAR SESIÓN?")) { localStorage.removeItem('aroma_key'); location.reload(); }};
 
     function iniciarSesion(key) {
-        currentUser = { role: USERS[key] === 'ADMIN' ? 'ADMIN' : 'USER', sucursal: USERS[key] };
+        currentUser = { role: USERS[key] === 'ADMIN' ? 'ADMIN' : 'USER', sucursal: USERS[key] === 'ADMIN' ? 'TODAS' : USERS[key] };
         document.getElementById('login-page').style.display = 'none';
         document.getElementById('app-content').style.display = 'block';
         document.getElementById('user-role-label').innerText = currentUser.sucursal;
         
         if(currentUser.role === 'ADMIN') {
             document.getElementById('admin-crud-box').style.display = 'block';
+            document.getElementById('sucursal-filter').disabled = false;
+        } else {
+            document.getElementById('sucursal-filter').value = currentUser.sucursal;
+            document.getElementById('sucursal-filter').disabled = true;
         }
         conectarFirebase();
     }
 
-    // --- NAVEGACIÓN Y BÚSQUEDA ---
     window.showSec = (id, btn) => {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         btn.classList.add('active');
-        
-        // Mostrar buscador solo en Stock y Ventas
-        document.getElementById('search-container').style.display = (id === 'sec-dash') ? 'none' : 'block';
+        document.getElementById('main-search-container').style.display = (id === 'sec-dash') ? 'none' : 'block';
         filtrarContenido();
     };
 
     window.filtrarContenido = () => {
-        const busqueda = document.getElementById('main-search').value.toLowerCase();
-        const activeSec = document.querySelector('.section.active').id;
-        
-        if(activeSec === 'sec-inv') {
-            const filtered = dbCloud.productos.filter(p => p.n.toLowerCase().includes(busqueda));
-            renderInventario(filtered);
-        } else if(activeSec === 'sec-ventas') {
-            renderVentas();
-        }
+        const q = document.getElementById('main-search').value.toLowerCase();
+        const active = document.querySelector('.section.active').id;
+        if(active === 'sec-inv') renderInv(dbCloud.productos.filter(p => p.n.toLowerCase().includes(q)));
+        if(active === 'sec-ventas') renderVentas();
     };
 
-    // --- FIREBASE Y RENDER ---
     function conectarFirebase() {
         onSnapshot(doc(window.cloudDB, "sistema", "aroma_data"), (snap) => {
             if(snap.exists()) {
                 dbCloud = snap.data();
                 updateDashboard();
                 filtrarContenido();
-            } else {
-                setDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: [], ventas: [] });
             }
         });
     }
 
-    function renderInventario(lista) {
-        let h = "";
-        lista.forEach(p => {
-            const stock = (currentUser.role === 'ADMIN') ? 
-                Object.values(p.s).reduce((a,b)=>a+b,0) : p.s[currentUser.sucursal];
-            h += `<tr><td>${p.n}</td><td style="color:${stock<5?'red':'black'}">${stock}</td><td>$${p.p}</td>
-                  <td>${currentUser.role==='ADMIN'?'<button onclick="editar(\''+p.id+'\')">EDIT</button>':'-'}</td></tr>`;
-        });
-        document.getElementById('lista-inv').innerHTML = h || "<tr><td colspan='4'>SIN RESULTADOS</td></tr>";
-    }
-
-    function renderVentas() {
-        // Actualizar select de productos para vender
-        let pOpts = "";
-        dbCloud.productos.forEach(p => pOpts += `<option value="${p.id}">${p.n} ($${p.p})</option>`);
-        document.getElementById('sale-prod').innerHTML = pOpts;
-
-        // Sucursales permitidas
-        let sOpts = currentUser.role === 'ADMIN' ? 
-            ['Sucursal Central','Sucursal Norte','Sucursal Sur'] : [currentUser.sucursal];
-        document.getElementById('sale-sucursal').innerHTML = sOpts.map(s=>`<option value="${s}">${s}</option>`).join('');
-
-        // Historial
-        let h = "";
-        const filtradas = currentUser.role === 'ADMIN' ? dbCloud.ventas : dbCloud.ventas.filter(v=>v.s === currentUser.sucursal);
-        filtradas.slice(-10).reverse().forEach(v => {
-            h += `<tr><td>${v.f.split(',')[0]}</td><td>${v.pn}</td><td>$${v.t.toFixed(2)}</td></tr>`;
-        });
-        document.getElementById('lista-historial-ventas').innerHTML = h;
-    }
-
-    // --- ACCIONES ADMIN ---
     window.guardarProducto = async () => {
         const id = document.getElementById('edit-id').value || Date.now().toString();
         const n = document.getElementById('inv-n').value.toUpperCase();
         const p = parseFloat(document.getElementById('inv-p').value);
         const s = parseInt(document.getElementById('inv-s').value);
-
-        if(!n || isNaN(p)) return alert("DATOS INCOMPLETOS");
+        const target = document.getElementById('inv-suc-target').value;
 
         let prods = [...dbCloud.productos];
         const idx = prods.findIndex(x => x.id == id);
         if(idx > -1) {
-            prods[idx] = { ...prods[idx], n, p, s: { ...prods[idx].s, "Sucursal Central": s }};
+            prods[idx].n = n; prods[idx].p = p; prods[idx].s[target] = s;
         } else {
-            prods.push({ id, n, p, s: {"Sucursal Central": s, "Sucursal Norte": 0, "Sucursal Sur": 0}});
+            let stockInit = {"Sucursal Central":0, "Sucursal Norte":0, "Sucursal Sur":0};
+            stockInit[target] = s;
+            prods.push({ id, n, p, s: stockInit });
         }
         await updateDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: prods });
         limpiarForm();
     };
+
+    function renderInv(lista) {
+        let h = "";
+        lista.forEach(p => {
+            const stock = (currentUser.role === 'ADMIN') ? 
+                Object.values(p.s).reduce((a,b)=>a+b,0) : p.s[currentUser.sucursal];
+            h += `<tr><td>${p.n}</td><td style="color:${stock<5?'red':'black'}">${stock}</td><td>$${p.p}</td>
+                  <td>${currentUser.role==='ADMIN'?'<button class="btn-edit" onclick="editar(\''+p.id+'\')">EDIT</button>':'-'}</td></tr>`;
+        });
+        document.getElementById('lista-inv').innerHTML = h;
+        document.getElementById('th-acc').style.display = currentUser.role === 'ADMIN' ? 'table-cell' : 'none';
+    }
 
     window.registrarVenta = async () => {
         const sid = document.getElementById('sale-sucursal').value;
         const pid = document.getElementById('sale-prod').value;
         const qty = parseInt(document.getElementById('sale-qty').value);
         const prod = dbCloud.productos.find(x => x.id == pid);
-
         if(prod && prod.s[sid] >= qty) {
-            let newProds = dbCloud.productos.map(p => {
-                if(p.id == pid) { p.s[sid] -= qty; }
-                return p;
-            });
+            let newProds = dbCloud.productos.map(p => { if(p.id == pid) p.s[sid] -= qty; return p; });
             const v = { s: sid, pn: prod.n, t: prod.p * qty, q: qty, f: new Date().toLocaleString() };
             await updateDoc(doc(window.cloudDB, "sistema", "aroma_data"), { productos: newProds, ventas: arrayUnion(v) });
-            alert("VENTA EXITOSA");
+            alert("VENTA REGISTRADA");
         } else { alert("STOCK INSUFICIENTE"); }
     };
+
+    function renderVentas() {
+        let pOpts = ""; dbCloud.productos.forEach(p => pOpts += `<option value="${p.id}">${p.n} ($${p.p})</option>`);
+        document.getElementById('sale-prod').innerHTML = pOpts;
+        let sOpts = currentUser.role === 'ADMIN' ? ['Sucursal Central','Sucursal Norte','Sucursal Sur'] : [currentUser.sucursal];
+        document.getElementById('sale-sucursal').innerHTML = sOpts.map(s=>`<option value="${s}">${s}</option>`).join('');
+        
+        let h = "<table><thead><tr><th>FECHA</th><th>PROD</th><th>TOTAL</th></tr></thead><tbody>";
+        const filtradas = (currentUser.role === 'ADMIN') ? dbCloud.ventas : dbCloud.ventas.filter(v=>v.s === currentUser.sucursal);
+        filtradas.slice(-15).reverse().forEach(v => {
+            h += `<tr><td>${v.f.split(',')[0]}</td><td>${v.pn}</td><td>$${v.t.toFixed(2)}</td></tr>`;
+        });
+        document.getElementById('lista-historial-ventas').innerHTML = h + "</tbody></table>";
+    }
+
+    function updateDashboard() {
+        const f = document.getElementById('sucursal-filter').value;
+        const sucursalActiva = (currentUser.role === 'ADMIN') ? f : currentUser.sucursal;
+        let total = 0, bajo = 0;
+        let chartData = {"Sucursal Central":0, "Sucursal Norte":0, "Sucursal Sur":0};
+        
+        dbCloud.ventas.forEach(v => { 
+            if(sucursalActiva === "TODAS" || v.s === sucursalActiva) total += v.t;
+            chartData[v.s] += v.t;
+        });
+        dbCloud.productos.forEach(p => {
+            const s = (sucursalActiva === "TODAS") ? Object.values(p.s).reduce((a,b)=>a+b,0) : p.s[sucursalActiva];
+            if(s < 5) bajo++;
+        });
+        
+        document.getElementById('bi-ventas').innerText = `$${total.toFixed(2)}`;
+        document.getElementById('bi-stock').innerText = bajo;
+        
+        const etiquetas = (currentUser.role === 'ADMIN') ? Object.keys(chartData) : [currentUser.sucursal];
+        const valores = (currentUser.role === 'ADMIN') ? Object.values(chartData) : [chartData[currentUser.sucursal]];
+
+        if(biChart) biChart.destroy();
+        biChart = new Chart(document.getElementById('chartBI'), { 
+            type: 'bar', data: { labels: etiquetas, datasets: [{ label: 'Ventas ($)', data: valores, backgroundColor: ['#600e2e', '#c99c3a', '#831540'] }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
 
     window.editar = (id) => {
         const p = dbCloud.productos.find(x => x.id == id);
@@ -288,38 +287,7 @@
         document.getElementById('inv-p').value = p.p;
         document.getElementById('inv-s').value = p.s["Sucursal Central"];
     };
-    function limpiarForm() { 
-        document.getElementById('edit-id').value = ""; 
-        document.getElementById('inv-n').value = ""; 
-        document.getElementById('inv-p').value = ""; 
-        document.getElementById('inv-s').value = ""; 
-    }
-
-    function updateDashboard() {
-        const f = document.getElementById('sucursal-filter').value;
-        let total = 0, bajo = 0;
-        let chartData = {"Sucursal Central":0, "Sucursal Norte":0, "Sucursal Sur":0};
-        
-        dbCloud.ventas.forEach(v => { 
-            if(f === "TODAS" || v.s === f) total += v.t; 
-            chartData[v.s] += v.t; 
-        });
-        dbCloud.productos.forEach(p => {
-            const s = f === "TODAS" ? Object.values(p.s).reduce((a,b)=>a+b,0) : p.s[f];
-            if(s < 5) bajo++;
-        });
-        
-        document.getElementById('bi-ventas').innerText = `$${total.toFixed(2)}`;
-        document.getElementById('bi-stock').innerText = bajo;
-        
-        const ctx = document.getElementById('chartBI').getContext('2d');
-        if(biChart) biChart.destroy();
-        biChart = new Chart(ctx, { 
-            type: 'bar', 
-            data: { labels: Object.keys(chartData), datasets: [{ data: Object.values(chartData), backgroundColor: ['#600e2e', '#c99c3a', '#831540'] }] },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-    }
+    function limpiarForm() { document.getElementById('edit-id').value = ""; document.getElementById('inv-n').value = ""; document.getElementById('inv-p').value = ""; document.getElementById('inv-s').value = ""; }
 </script>
 </body>
 </html>
